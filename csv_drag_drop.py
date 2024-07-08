@@ -36,28 +36,38 @@ class CSVDragDropWidget(QWidget):
         self.layout = QVBoxLayout()
         
         # Label para instruções
-        self.label = QLabel('ARRASTE SEU ARQUIVO CSV', self)
+        self.label = QLabel('ARRASTE E ENVIE', self)
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setFont(QFont('Arial', 16, QFont.Bold))
-        self.label.setStyleSheet("color: #253237; padding: 20px;")
+        self.label.setFont(QFont('Arial', 20, QFont.Bold))
+        self.label.setStyleSheet("""
+            color: #253237;                   
+            margin-bottom: 20px;     
+        """)
         self.layout.addWidget(self.label)
         
         # Label para área de arrastar e soltar
         self.drop_label = QLabel(self)
         self.drop_label.setAlignment(Qt.AlignCenter)
         self.drop_label.setFont(QFont('Arial', 14))
-        self.drop_label.setText("")
+        self.drop_label.setText("ARRASTE SEU ARQUIVO")
         self.drop_label.setStyleSheet("""
             border: 2px dashed #9db4c0;
-            color: #333333;
+            color: #333333;                     
+            min-width: 400px;                                      
+            min-height: 400px;                          
             background-color: #E0FBFC;
-            padding: 50px;
             border-radius: 10px;
         """)
         self.layout.addWidget(self.drop_label)
         
         # QTableView para mostrar o preview do CSV
-        # self.table_view = QTableView(self)
+        self.table_view = QTableView(self)
+        self.table_view.setStyleSheet("""
+            background-color: #E0FBFC;
+            color: #000000;
+        """)
+        self.layout.addWidget(self.table_view)
+        self.table_view.hide()  # Esconder a tabela inicialmente
         
         # Layout para os botões
         button_layout = QHBoxLayout()
@@ -104,9 +114,6 @@ class CSVDragDropWidget(QWidget):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getOpenFileName(self, "Selecione o Arquivo CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
         if fileName and fileName.lower().endswith('.csv'):
-            if not hasattr(self, 'table_view'):
-                self.table_view = QTableView(self)
-                self.layout.addWidget(self.table_view)
             self.loadCSV(fileName)
         else:
             self.drop_label.setText('Por favor, selecione um arquivo CSV válido.')
@@ -116,16 +123,13 @@ class CSVDragDropWidget(QWidget):
         self.csv_data = pd.read_csv(file_path)
         self.drop_label.hide()  # Esconder a área de arrastar e soltar
         self.analyze_button.show()  # Mostrar o botão "Gerar Análise"
-
-        if not hasattr(self, 'table_view'):
-            self.table_view = QTableView(self)
-            self.layout.addWidget(self.table_view)
         
         # Mostrar os dados em QTableView
         model = PandasTableModel(self.csv_data)
         self.table_view.setModel(model)
         self.table_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table_view.resizeColumnsToContents()
+        self.table_view.show()  # Mostrar a tabela após carregar os dados
     
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
