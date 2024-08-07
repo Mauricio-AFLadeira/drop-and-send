@@ -1,25 +1,17 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QTableView, QAbstractItemView
-from PyQt5.QtCore import Qt, QAbstractTableModel, QMimeData
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 import pandas as pd
-import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
-class PandasTableModel(QAbstractTableModel):
-    def __init__(self, data):
-        super().__init__()
-        self._data = data
-
-    def rowCount(self, parent):
-        return len(self._data)
-
-    def columnCount(self, parent):
-        return len(self._data.columns)
-
-    def data(self, index, role):
-        if role == Qt.DisplayRole:
-            return str(self._data.iloc[index.row(), index.column()])
-        return None
+class MplCanvas(FigureCanvas):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super().__init__(fig)
 
 class CSVDragDropWidget(QWidget):
     def __init__(self):
@@ -60,15 +52,6 @@ class CSVDragDropWidget(QWidget):
         """)
         self.layout.addWidget(self.drop_label)
         
-        # QTableView para mostrar o preview do CSV
-        self.table_view = QTableView(self)
-        self.table_view.setStyleSheet("""
-            background-color: #E0FBFC;
-            color: #000000;
-        """)
-        self.layout.addWidget(self.table_view)
-        self.table_view.hide()  # Esconder a tabela inicialmente
-        
         # Layout para os botões
         button_layout = QHBoxLayout()
         
@@ -103,6 +86,11 @@ class CSVDragDropWidget(QWidget):
         
         self.layout.addLayout(button_layout)  # Adicionar o layout dos botões ao layout principal
         
+        # Adicionar um canvas para plotar o gráfico
+        self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
+        self.layout.addWidget(self.canvas)
+        self.canvas.hide()  # Esconder o canvas inicialmente
+        
         # Configurar a área de arrastar e soltar
         self.setAcceptDrops(True)
         self.setLayout(self.layout)
@@ -122,14 +110,25 @@ class CSVDragDropWidget(QWidget):
     def loadCSV(self, file_path):
         self.csv_data = pd.read_csv(file_path)
         self.drop_label.hide()  # Esconder a área de arrastar e soltar
-        self.analyze_button.show()  # Mostrar o botão "Gerar Análise"
-        
-        # Mostrar os dados em QTableView
-        model = PandasTableModel(self.csv_data)
-        self.table_view.setModel(model)
-        self.table_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table_view.resizeColumnsToContents()
-        self.table_view.show()  # Mostrar a tabela após carregar os dados
+        self.analyze_button.show()  # Esconder a área de arrastar e soltar
+
+        # Manipular dados antes de plotar
+        if len(self.csv_data.columns) >= 1:
+            data_column = self.csv_data.columns[0]
+            self.csv_data[data_column] = self.csv_data[data_column].str.replace(',', '.')
+            self.csv_data[data_column] = pd.to_numeric(self.csv_data[data_column], errors='coerce')
+            self.csv_data[data_column] = self.csv_data[data_column].fillna(self.csv_data[data_column].mean())
+
+            # Plotar histograma no canvas
+            self.canvas.axes.clear()
+            self.canvas.axes.hist(self.csv_data[data_column], bins=100, density=True, rwidth=0.8, color='blue')
+            self.canvas.axes.set_xlabel(data_column)
+            self.canvas.axes.set_ylabel('Frequência')
+            self.canvas.axes.set_title(f'Histograma de {data_column}')
+            self.canvas.draw()
+            self.canvas.show()
+        else:
+            self.label.setText('A coluna "velocidade" não foi encontrada no arquivo CSV.')
     
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
