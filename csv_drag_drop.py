@@ -6,6 +6,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.backends.backend_pdf import PdfPages
+import smtplib
+import getpass
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 class MplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -119,16 +126,84 @@ class CSVDragDropWidget(QWidget):
             self.csv_data[data_column] = pd.to_numeric(self.csv_data[data_column], errors='coerce')
             self.csv_data[data_column] = self.csv_data[data_column].fillna(self.csv_data[data_column].mean())
 
+            # Criando o PDF onde os gráficos serão salvos
+            pdf = PdfPages('output/histograma_output.pdf')
+
             # Plotar histograma no canvas
             self.canvas.axes.clear()
             self.canvas.axes.hist(self.csv_data[data_column], bins=100, density=True, rwidth=0.8, color='blue')
-            self.canvas.axes.set_xlabel(data_column)
-            self.canvas.axes.set_ylabel('Frequência')
+            self.canvas.axes.set_xlabel('Segundos')
+            self.canvas.axes.set_ylabel(data_column)
             self.canvas.axes.set_title(f'Histograma de {data_column}')
             self.canvas.draw()
+
+            # Salva o gráfico atual no PDF
+            pdf.savefig(self.canvas.figure)
+
+            # Fecha o arquivo PDF após salvar o gráfico
+            pdf.close()
+
+            # Exibir o histograma na interface como antes
             self.canvas.show()
+
+            HOST = "smtp-mail.outlook.com"
+            PORT = 587
+
+            FROM_EMAIL = "tccmauricioafl@outlook.com"
+            TO_EMAIL = "ninjafu40@gmail.com"
+            PASSWORD = "2PEE%.k!xCWC8-Y"
+
+            # Crie a mensagem MIMEMultipart
+            msg = MIMEMultipart()
+            msg['From'] = FROM_EMAIL
+            msg['To'] = TO_EMAIL
+            msg['Subject'] = "enviando teste de velocidade para o gabs"
+
+            # Corpo do e-mail
+            msg.attach(MIMEText("Daum ligue no quanto o pai é rápido fi", 'plain'))
+
+            # Anexar um arquivo
+            filename = "output/histograma_output.pdf"
+            attachment = open(filename, "rb")
+
+            # Configuração do anexo
+            part = MIMEBase('application', 'pdf')
+            part.set_payload((attachment).read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename= {filename.split("/")[-1]}')
+
+            # Anexe o arquivo à mensagem
+            msg.attach(part)
+
+            # Conectar ao servidor e enviar o e-mail
+            smtp = smtplib.SMTP(HOST, PORT)
+
+            status_code, response = smtp.ehlo()
+            print(f"[*] Echoing the server: {status_code} {response}")
+
+            status_code, response = smtp.starttls()
+            print(f"[*] Starting TLS connection: {status_code} {response}")
+
+            status_code, response = smtp.login(FROM_EMAIL, PASSWORD)
+            print(f"[*] Logging in: {status_code} {response}")
+
+            import time
+            retries = 3
+            for i in range(retries):
+                try:
+                    smtp.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
+                    print("E-mail enviado com sucesso!")
+                    break
+                except smtplib.SMTPDataError as e:
+                    print(f"Erro {e}, tentando novamente em 10 segundos...")
+                    time.sleep(10)
+            else:
+                print("Falha ao enviar o e-mail após várias tentativas.")
+
+            # smtp.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
+            smtp.quit()
         else:
-            self.label.setText('A coluna "velocidade" não foi encontrada no arquivo CSV.')
+            self.label.setText('Algo deu errado ao carregar o arquivo CSV.')
     
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
