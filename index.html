@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Drag and Send</title>
+</head>
+<body class="bg-[#C2DFE3] text-[#253237] flex flex-col items-center justify-center min-h-screen">
+    <div class="w-full max-w-md p-6 bg-white shadow-md rounded-lg">
+        <h1 id="title" class="text-2xl font-bold text-center mb-6">Arraste e Analise</h1>
+        <form id="uploadForm" class="space-y-4">
+            <div id="fileUploadWrapper" class="relative w-full h-48 border-2 border-dashed border-gray-300 rounded-lg bg-white flex items-center justify-center cursor-pointer hover:bg-gray-100">
+                <input type="file" id="csv_file" name="csv_file" accept=".csv" required class="absolute inset-0 opacity-0 cursor-pointer">
+                <div class="text-gray-500 text-center">
+                    Arraste um arquivo aqui ou clique para escolher arquivo
+                </div>
+            </div>
+
+            <button type="submit" id="generateButton" class="hidden w-full bg-[#6a994e] text-white py-2 px-4 rounded-lg hover:bg-[#5a8545]">
+                Gerar
+            </button>
+        </form>
+        
+        <canvas id="histogramPreview" class="hidden w-full h-48 mt-6"></canvas>
+
+        <input type="email" id="to_email" placeholder="Digite o e-mail do destinatário" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
+
+        <button id="sendEmailButton" disabled class="hidden w-full mt-4 bg-[#6a994e] text-white py-2 px-4 rounded-lg cursor-not-allowed opacity-50">
+            Enviar E-mail
+        </button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('csv_file');
+        const fileUploadWrapper = document.getElementById('fileUploadWrapper');
+        const generateButton = document.getElementById('generateButton');
+        const histogramPreview = document.getElementById('histogramPreview');
+        const sendEmailButton = document.getElementById('sendEmailButton');
+        const toEmailInput = document.getElementById('to_email');
+
+        fileInput.addEventListener('change', function(event) {
+            const file = fileInput.files[0];
+            if (file && file.name.endsWith('.csv')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    const data = text.split('\n').slice(1).map(item => parseFloat(item.replace(/"/g, '').replace(',', '.')));
+                    renderHistogram(data);
+                    fileUploadWrapper.classList.add('hidden');
+                    generateButton.classList.remove('hidden');
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function renderHistogram(data) {
+            histogramPreview.classList.remove('hidden');
+            const ctx = histogramPreview.getContext('2d');
+            console.log(data, 'renderHistogram')
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: data.length}, (_, i) => i + 1),
+                    datasets: [{
+                        label: 'Histograma',
+                        data: data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        uploadForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(uploadForm);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.pdf_file) {
+                    histogramPreview.classList.add('hidden');
+                    toEmailInput.classList.remove('hidden');
+                    sendEmailButton.classList.remove('hidden');
+                    sendEmailButton.setAttribute('data-pdf', data.pdf_file);
+                } else {
+                    alert(data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        sendEmailButton.addEventListener('click', function () {
+            const toEmail = toEmailInput.value;
+            const pdfFile = sendEmailButton.getAttribute('data-pdf');
+            if (toEmail) {
+                fetch('/send_email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `to_email=${encodeURIComponent(toEmail)}&pdf_file=${encodeURIComponent(pdfFile)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.success);
+                    } else {
+                        alert(data.error);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        });
+
+        toEmailInput.addEventListener('input', function() {
+            sendEmailButton.disabled = !this.value.match(/[^@]+@[^@]+\.[^@]+/);
+        });
+    </script>
+</body>
+</html>
