@@ -21,10 +21,22 @@
                 Gerar
             </button>
         </form>
+
+        <div id="loading" class="hidden w-full text-center py-4">
+            <svg class="animate-spin h-8 w-8 text-[#6a994e] mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.963 7.963 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p>Gerando PDF, por favor aguarde...</p>
+        </div>
         
         <canvas id="histogramPreview" class="hidden w-full h-48 mt-6"></canvas>
 
         <input type="email" id="to_email" placeholder="Digite o e-mail do destinatário" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
+
+        <input type="text" id="email_subject" placeholder="Digite o assunto do e-mail" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
+
+        <textarea id="email_body" placeholder="Digite a mensagem do e-mail" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]"></textarea>
 
         <button id="sendEmailButton" disabled class="hidden w-full mt-4 bg-[#6a994e] text-white py-2 px-4 rounded-lg cursor-not-allowed opacity-50">
             Enviar E-mail
@@ -40,6 +52,21 @@
         const histogramPreview = document.getElementById('histogramPreview');
         const sendEmailButton = document.getElementById('sendEmailButton');
         const toEmailInput = document.getElementById('to_email');
+        const emailSubjectInput = document.getElementById('email_subject');
+        const emailBodyInput = document.getElementById('email_body');
+        const loading = document.getElementById('loading');
+
+        function updateButtonState() {
+            if (toEmail.value && emailSubject.value && emailBody.value) {
+                sendEmailButton.disabled = false;
+                sendEmailButton.classList.remove('cursor-not-allowed', 'opacity-50');
+                sendEmailButton.classList.add('cursor-pointer', 'opacity-100');
+            } else {
+                sendEmailButton.disabled = true;
+                sendEmailButton.classList.add('cursor-not-allowed', 'opacity-50');
+                sendEmailButton.classList.remove('cursor-pointer', 'opacity-100');
+            }
+        }
 
         fileInput.addEventListener('change', function(event) {
             const file = fileInput.files[0];
@@ -59,7 +86,6 @@
         function renderHistogram(data) {
             histogramPreview.classList.remove('hidden');
             const ctx = histogramPreview.getContext('2d');
-            console.log(data, 'renderHistogram')
             new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -84,6 +110,10 @@
 
         uploadForm.addEventListener('submit', function(event) {
             event.preventDefault();
+            
+            generateButton.classList.add('hidden');
+            loading.classList.remove('hidden');
+
             const formData = new FormData(uploadForm);
 
             fetch('/upload', {
@@ -92,28 +122,42 @@
             })
             .then(response => response.json())
             .then(data => {
+                // Esconder o loading após receber a resposta do backend
+                loading.classList.add('hidden');
+                
                 if (data.pdf_file) {
                     histogramPreview.classList.add('hidden');
                     toEmailInput.classList.remove('hidden');
+                    emailSubjectInput.classList.remove('hidden');
+                    emailBodyInput.classList.remove('hidden');
                     sendEmailButton.classList.remove('hidden');
                     sendEmailButton.setAttribute('data-pdf', data.pdf_file);
                 } else {
                     alert(data.error);
+                    generateButton.classList.remove('hidden'); // Mostrar o botão "Gerar" se houver erro
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ocorreu um erro. Tente novamente.');
+                loading.classList.add('hidden');
+                generateButton.classList.remove('hidden'); // Mostrar o botão "Gerar" se houver erro
+            });
         });
 
         sendEmailButton.addEventListener('click', function () {
             const toEmail = toEmailInput.value;
             const pdfFile = sendEmailButton.getAttribute('data-pdf');
-            if (toEmail) {
+            const emailSubject = emailSubjectInput.value;
+            const emailBody = emailBodyInput.value;
+
+            if (toEmail && emailSubject && emailBody) {
                 fetch('/send_email', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `to_email=${encodeURIComponent(toEmail)}&pdf_file=${encodeURIComponent(pdfFile)}`
+                    body: `to_email=${encodeURIComponent(toEmail)}&pdf_file=${encodeURIComponent(pdfFile)}&email_subject=${encodeURIComponent(emailSubject)}&email_body=${encodeURIComponent(emailBody)}`
                 })
                 .then(response => response.json())
                 .then(data => {
