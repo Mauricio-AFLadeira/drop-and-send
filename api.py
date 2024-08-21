@@ -13,6 +13,7 @@ from email import encoders
 from flask import Flask, request, jsonify, send_file, send_from_directory
 import re
 import random
+from statistics_algorithm import generate_statistics, plot_graphics, analyze_normality_stationarity, smoothing_and_modeling, train_neural_network
 
 app = Flask(__name__)
 output_dir = 'output'
@@ -41,12 +42,22 @@ def upload_file():
         pdf_path = os.path.join(output_dir, pdf_filename)
 
         with PdfPages(pdf_path) as pdf:
-            plt.figure()
-            plt.hist(df[data_column], bins=100, density=True, rwidth=0.8, color='blue')
-            plt.xlabel('Segundos')
-            plt.ylabel(data_column)
-            plt.title(f'Histograma de {data_column}')
+            statistics = generate_statistics(df, data_column)
+            stats_text = '\n'.join([f'{stat}: {value:.2f}' for stat, value in statistics.items()])
+            plt.gcf().text(0.15, 0.6, stats_text, fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
             pdf.savefig()
+
+            plot_graphics(df, data_column, pdf)
+
+            normality_stationarity = analyze_normality_stationarity(df, data_column)
+            ns_text = f"Shapiro-Wilk: {normality_stationarity['shapiro_stat']:.2f}, {normality_stationarity['shapiro_p_value']:.2f}\n"
+            ns_text += f"KPSS: {normality_stationarity['kpss_stat']:.2f}, {normality_stationarity['kpss_p_value']:.2f}"
+            plt.gcf().text(0.15, 0.6, ns_text, fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
+            pdf.savefig()
+
+            smoothing_and_modeling(df, data_column, pdf)
+
+            train_neural_network(df, data_column, pdf)
 
         return jsonify({'pdf_file': pdf_filename})
     else:
@@ -56,6 +67,8 @@ def upload_file():
 def send_email():
     email_to = request.form.get('to_email')
     pdf_filename = request.form.get('pdf_file')
+    email_subject = request.form.get('email_subject')
+    email_body = request.form.get('email_body')
 
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email_to):
         return jsonify({'error': 'Endereço de e-mail inválido.'}), 400
@@ -70,8 +83,8 @@ def send_email():
     msg = MIMEMultipart()
     msg['From'] = FROM_EMAIL
     msg['To'] = TO_EMAIL
-    msg['Subject'] = "Histograma gerado"
-    msg.attach(MIMEText("Segue em anexo o histograma gerado.", 'plain'))
+    msg['Subject'] = email_subject  # Use o assunto enviado pelo usuário
+    msg.attach(MIMEText(email_body, 'plain'))  # Use o corpo do e-mail enviado pelo usuário
 
     if os.path.exists(pdf_path):
         with open(pdf_path, "rb") as attachment:
