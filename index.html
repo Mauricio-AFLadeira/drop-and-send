@@ -7,7 +7,7 @@
     <title>Drag and Send</title>
 </head>
 <body class="bg-[#C2DFE3] text-[#253237] flex flex-col items-center justify-center min-h-screen">
-    <div class="w-full max-w-md p-6 bg-white shadow-md rounded-lg">
+    <div id="container" class="w-full max-w-md p-6 bg-white shadow-md rounded-lg">
         <h1 id="title" class="text-2xl font-bold text-center mb-6">Arraste e Analise</h1>
         <form id="uploadForm" class="space-y-4">
             <div id="fileUploadWrapper" class="relative w-full h-48 border-2 border-dashed border-gray-300 rounded-lg bg-white flex items-center justify-center cursor-pointer hover:bg-gray-100">
@@ -32,11 +32,11 @@
         
         <canvas id="histogramPreview" class="hidden w-full h-48 mt-6"></canvas>
 
-        <input type="email" id="to_email" placeholder="Digite o e-mail do destinatário" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
+        <input type="email" id="toEmail" placeholder="Digite o e-mail do destinatário" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
 
-        <input type="text" id="email_subject" placeholder="Digite o assunto do e-mail" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
+        <input type="text" id="emailSubject" placeholder="Digite o assunto do e-mail" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]">
 
-        <textarea id="email_body" placeholder="Digite a mensagem do e-mail" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]"></textarea>
+        <textarea id="emailBody" placeholder="Digite a mensagem do e-mail" required class="hidden w-full mt-4 p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#6a994e]"></textarea>
 
         <button id="sendEmailButton" disabled class="hidden w-full mt-4 bg-[#6a994e] text-white py-2 px-4 rounded-lg cursor-not-allowed opacity-50">
             Enviar E-mail
@@ -51,13 +51,14 @@
         const generateButton = document.getElementById('generateButton');
         const histogramPreview = document.getElementById('histogramPreview');
         const sendEmailButton = document.getElementById('sendEmailButton');
-        const toEmailInput = document.getElementById('to_email');
-        const emailSubjectInput = document.getElementById('email_subject');
-        const emailBodyInput = document.getElementById('email_body');
+        const toEmailInput = document.getElementById('toEmail');
+        const emailSubjectInput = document.getElementById('emailSubject');
+        const emailBodyInput = document.getElementById('emailBody');
         const loading = document.getElementById('loading');
+        const container = document.getElementById('container');
 
         function updateButtonState() {
-            if (toEmail.value && emailSubject.value && emailBody.value) {
+            if (toEmailInput.value && emailSubjectInput.value && emailBodyInput.value) {
                 sendEmailButton.disabled = false;
                 sendEmailButton.classList.remove('cursor-not-allowed', 'opacity-50');
                 sendEmailButton.classList.add('cursor-pointer', 'opacity-100');
@@ -68,14 +69,21 @@
             }
         }
 
+        function capitalize(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
         fileInput.addEventListener('change', function(event) {
+            container.classList.remove('max-w-md');
+            container.classList.add('max-w-screen-md');
             const file = fileInput.files[0];
             if (file && file.name.endsWith('.csv')) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const text = e.target.result;
+                    const header = text.split('\n').slice(0,1).map(item => item.replace("\r", ""))
                     const data = text.split('\n').slice(1).map(item => parseFloat(item.replace(/"/g, '').replace(',', '.')));
-                    renderHistogram(data);
+                    renderHistogram(data, header);
                     fileUploadWrapper.classList.add('hidden');
                     generateButton.classList.remove('hidden');
                 };
@@ -83,15 +91,15 @@
             }
         });
 
-        function renderHistogram(data) {
+        function renderHistogram(data, header) {
             histogramPreview.classList.remove('hidden');
             const ctx = histogramPreview.getContext('2d');
             new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: Array.from({length: data.length}, (_, i) => i + 1),
                     datasets: [{
-                        label: 'Histograma',
+                        label: capitalize(header[0]),
                         data: data,
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
                         borderColor: 'rgba(54, 162, 235, 1)',
@@ -122,7 +130,6 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Esconder o loading após receber a resposta do backend
                 loading.classList.add('hidden');
                 
                 if (data.pdf_file) {
@@ -134,14 +141,14 @@
                     sendEmailButton.setAttribute('data-pdf', data.pdf_file);
                 } else {
                     alert(data.error);
-                    generateButton.classList.remove('hidden'); // Mostrar o botão "Gerar" se houver erro
+                    generateButton.classList.remove('hidden');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('Ocorreu um erro. Tente novamente.');
                 loading.classList.add('hidden');
-                generateButton.classList.remove('hidden'); // Mostrar o botão "Gerar" se houver erro
+                generateButton.classList.remove('hidden');
             });
         });
 
@@ -171,9 +178,9 @@
             }
         });
 
-        toEmailInput.addEventListener('input', function() {
-            sendEmailButton.disabled = !this.value.match(/[^@]+@[^@]+\.[^@]+/);
-        });
+        toEmailInput.addEventListener('input', updateButtonState);
+        emailSubjectInput.addEventListener('input', updateButtonState);
+        emailBodyInput.addEventListener('input', updateButtonState);
     </script>
 </body>
 </html>
