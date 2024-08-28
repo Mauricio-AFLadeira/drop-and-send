@@ -7,7 +7,7 @@
     <title>Drag and Send</title>
 </head>
 <body class="bg-[#C2DFE3] text-[#253237] flex flex-col items-center justify-center min-h-screen">
-    <div id="container" class="w-full max-w-md p-6 bg-white shadow-md rounded-lg">
+    <div id="container" class="transition-container w-full max-w-md p-6 bg-white shadow-md rounded-lg">
         <h1 id="title" class="text-2xl font-bold text-center mb-6">Arraste e Analise</h1>
         <form id="uploadForm" class="space-y-4">
             <div id="fileUploadWrapper" class="relative w-full h-48 border-2 border-dashed border-gray-300 rounded-lg bg-white flex items-center justify-center cursor-pointer hover:bg-gray-100">
@@ -102,14 +102,23 @@
                         label: capitalize(header[0]),
                         data: data,
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
+                        borderColor: '#5a8545', 
+                        borderWidth: 2,
+                        pointRadius: 0  
                     }]
                 },
                 options: {
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grid: {
+                                display: false  
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false 
+                            }
                         }
                     }
                 }
@@ -182,5 +191,10 @@
         emailSubjectInput.addEventListener('input', updateButtonState);
         emailBodyInput.addEventListener('input', updateButtonState);
     </script>
+    <style>
+        .transition-container {
+          transition: max-width 0.5s ease-in-out;
+        }
+      </style>
 </body>
 </html>
