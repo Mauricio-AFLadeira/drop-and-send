@@ -32,8 +32,10 @@ def upload_file():
     if file and file.filename.endswith('.csv'):
         df = pd.read_csv(file)
         data_column = df.columns[0]
-        df[data_column] = df[data_column].str.replace(',', '.')
-        df[data_column] = pd.to_numeric(df[data_column], errors='coerce')
+        if df[data_column].dtype == 'object':
+            df[data_column] = df[data_column].str.replace(',', '.')            
+            df[data_column] = pd.to_numeric(df[data_column], errors='coerce')
+            
         df[data_column] = df[data_column].fillna(df[data_column].mean())
 
         # Gerando um número aleatório de 4 dígitos
