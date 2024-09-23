@@ -43,6 +43,17 @@
         </button>
     </div>
 
+    <div id="columnModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h2 class="text-lg font-bold mb-4">Selecione a coluna para análise</h2>
+            <select id="columnSelect" class="w-full p-2 border rounded">
+            </select>
+            <div class="mt-4 flex justify-end">
+                <button id="confirmColumnButton" class="bg-[#6a994e] text-white py-2 px-4 rounded-lg">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const uploadForm = document.getElementById('uploadForm');
@@ -56,6 +67,7 @@
         const emailBodyInput = document.getElementById('emailBody');
         const loading = document.getElementById('loading');
         const container = document.getElementById('container');
+        let selectedColumnIndex = null; 
 
         function updateButtonState() {
             if (toEmailInput.value && emailSubjectInput.value && emailBodyInput.value) {
@@ -81,15 +93,60 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const text = e.target.result;
-                    const header = text.split('\n').slice(0,1).map(item => item.replace("\r", ""))
-                    const data = text.split('\n').slice(1).map(item => parseFloat(item.replace(/"/g, '').replace(',', '.')));
-                    renderHistogram(data, header);
-                    fileUploadWrapper.classList.add('hidden');
-                    generateButton.classList.remove('hidden');
+                    const lines = text.split('\n');
+                    const header = lines[0].split(';').map(item => item.trim().replace("\r", ""));
+                    const data = lines.slice(1).map(row => row.split(';').map(item => parseFloat(item.replace(/"/g, '').replace(',', '.'))));
+                    
+                    // Preencher o modal com as opções de colunas
+                    const columnSelect = document.getElementById('columnSelect');
+                    columnSelect.innerHTML = '';  // Limpar seleções anteriores
+                    header.forEach((col, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;  // Salva o índice da coluna
+                        option.text = capitalize(col);
+                        columnSelect.appendChild(option);
+                    });
+
+                    // Mostrar o modal
+                    const columnModal = document.getElementById('columnModal');
+                    columnModal.classList.remove('hidden');
+                    
+                    // Ao confirmar a seleção da coluna
+                    const confirmColumnButton = document.getElementById('confirmColumnButton');
+                    confirmColumnButton.addEventListener('click', function() {
+                        selectedColumnIndex = columnSelect.value;
+                        const selectedColumnData = data.map(row => row[selectedColumnIndex]);
+
+                        // Esconder o modal
+                        columnModal.classList.add('hidden');
+
+                        // Renderizar o histograma
+                        renderHistogram(selectedColumnData, [header[selectedColumnIndex]]);
+                        fileUploadWrapper.classList.add('hidden');
+                        generateButton.classList.remove('hidden');
+                    });
                 };
                 reader.readAsText(file);
             }
         });
+
+        // fileInput.addEventListener('change', function(event) {
+        //     container.classList.remove('max-w-md');
+        //     container.classList.add('max-w-screen-md');
+        //     const file = fileInput.files[0];
+        //     if (file && file.name.endsWith('.csv')) {
+        //         const reader = new FileReader();
+        //         reader.onload = function(e) {
+        //             const text = e.target.result;
+        //             const header = text.split('\n').slice(0,1).map(item => item.replace("\r", ""))
+        //             const data = text.split('\n').slice(1).map(item => parseFloat(item.replace(/"/g, '').replace(',', '.')));
+        //             renderHistogram(data, header);
+        //             fileUploadWrapper.classList.add('hidden');
+        //             generateButton.classList.remove('hidden');
+        //         };
+        //         reader.readAsText(file);
+        //     }
+        // });
 
         function renderHistogram(data, header) {
             histogramPreview.classList.remove('hidden');
@@ -132,6 +189,7 @@
             loading.classList.remove('hidden');
 
             const formData = new FormData(uploadForm);
+            formData.append('selectedColumnIndex', selectedColumnIndex);
 
             fetch('/upload', {
                 method: 'POST',
@@ -195,6 +253,10 @@
         .transition-container {
           transition: max-width 0.5s ease-in-out;
         }
-      </style>
+
+        #columnModal {
+            transition: opacity 0.3s ease;
+        }
+    </style>
 </body>
 </html>
