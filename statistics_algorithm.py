@@ -5,8 +5,8 @@ import scipy.stats as stats
 from scipy.stats import norm
 from statsmodels.tsa.stattools import kpss
 from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
-# from tensorflow.keras.models import Sequential
-# from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
 
 # Função para gerar estatísticas descritivas
 def generate_statistics(df, data_column):
@@ -22,7 +22,7 @@ def plot_graphics(df, data_column, pdf):
     pdf.savefig()
 
     plt.figure()
-    df.plot()
+    df[data_column].plot()
     plt.xlabel('Segundos')
     plt.ylabel(data_column)
     plt.title(data_column)
@@ -77,42 +77,44 @@ def smoothing_and_modeling(df, data_column, pdf):
     plt.close('all')
 
 # Função para treinamento da rede neural
-# def train_neural_network(df, data_column, pdf):
-#     data = df[data_column].values.astype('float32')
-#     train = data[:350]
-#     test = data[350:]
+def train_neural_network(df, data_column, pdf):
+    data = df[data_column].values.astype('float32')
+    train_size = int(len(data) * (2/3))
 
-#     def prepare_data(data, lags=1):
-#         X, Y = [], []
-#         for row in range(len(data) - lags - 1):
-#             a = data[row:(row + lags)]
-#             X.append(a)
-#             Y.append(data[row + lags])
-#         return np.array(X), np.array(Y)
+    train = data[:train_size]
+    test = data[train_size:]
 
-#     lags = 1
-#     X_train, Y_train = prepare_data(train, lags)
-#     X_test, Y_test = prepare_data(test, lags)
+    def prepare_data(data, lags=1):
+        X, Y = [], []
+        for row in range(len(data) - lags - 1):
+            a = data[row:(row + lags)]
+            X.append(a)
+            Y.append(data[row + lags])
+        return np.array(X), np.array(Y)
 
-#     md1 = Sequential()
-#     md1.add(Dense(3, input_dim=lags, activation='relu'))
-#     md1.add(Dense(1))
-#     md1.compile(loss='mean_squared_error', optimizer='adam')
-#     md1.fit(X_train, Y_train, epochs=200, batch_size=2, verbose=2)
+    lags = 1
+    X_train, Y_train = prepare_data(train, lags)
+    X_test, Y_test = prepare_data(test, lags)
 
-#     train_predict = md1.predict(X_train)
-#     test_predict = md1.predict(X_test)
+    md1 = Sequential()
+    md1.add(Dense(3, input_dim=lags, activation='relu'))
+    md1.add(Dense(1))
+    md1.compile(loss='mean_squared_error', optimizer='adam')
+    md1.fit(X_train, Y_train, epochs=200, batch_size=2, verbose=2)
 
-#     plt.figure()
-#     plt.plot(X_train, color='blue')
-#     plt.plot(train_predict, color='red')
-#     plt.title('Previsão - Dados de Treino')
-#     pdf.savefig()
+    train_predict = md1.predict(X_train)
+    test_predict = md1.predict(X_test)
 
-#     plt.figure()
-#     plt.plot(X_test, color='blue')
-#     plt.plot(test_predict, color='red')
-#     plt.title('Previsão - Dados de Teste')
-#     pdf.savefig()
+    plt.figure()
+    plt.plot(X_train, color='blue')
+    plt.plot(train_predict, color='red')
+    plt.title('Previsão - Dados de Treino')
+    pdf.savefig()
 
-#     plt.close('all')
+    plt.figure()
+    plt.plot(X_test, color='blue')
+    plt.plot(test_predict, color='red')
+    plt.title('Previsão - Dados de Teste')
+    pdf.savefig()
+
+    plt.close('all')

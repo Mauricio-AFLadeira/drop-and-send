@@ -13,7 +13,7 @@ from email import encoders
 from flask import Flask, request, jsonify, send_file, send_from_directory
 import re
 import random
-from statistics_algorithm import generate_statistics, plot_graphics, analyze_normality_stationarity, smoothing_and_modeling#, train_neural_network
+from statistics_algorithm import generate_statistics, plot_graphics, analyze_normality_stationarity, smoothing_and_modeling, train_neural_network
 
 app = Flask(__name__)
 output_dir = 'output'
@@ -74,7 +74,7 @@ def upload_file():
 
                 smoothing_and_modeling(df, data_column, pdf)
 
-                # train_neural_network(df, data_column, pdf)
+                train_neural_network(df, data_column, pdf)
 
             return jsonify({'pdf_file': pdf_filename})
 
@@ -93,9 +93,9 @@ def send_email():
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email_to):
         return jsonify({'error': 'Endereço de e-mail inválido.'}), 400
 
-    FROM_EMAIL = "tccmauricioafl@outlook.com"
-    PASSWORD = "2PEE%.k!xCWC8-Y"
-    HOST = "smtp-mail.outlook.com"
+    FROM_EMAIL = "mauricioafl001@gmail.com"
+    PASSWORD = "keog ddcw jthg sncx"
+    HOST = "smtp.gmail.com"
     PORT = 587
     TO_EMAIL = email_to
     pdf_path = os.path.join(output_dir, pdf_filename)
