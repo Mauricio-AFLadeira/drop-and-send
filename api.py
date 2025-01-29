@@ -13,7 +13,7 @@ from email import encoders
 from flask import Flask, request, jsonify, send_file, send_from_directory
 import re
 import random
-from statistics_algorithm import generate_statistics, plot_graphics, analyze_normality_stationarity, smoothing_and_modeling, train_neural_network
+from statistics_algorithm import generate_statistics, plot_graphics, decomposition, analyze_normality_stationarity, smoothing_and_modeling, train_neural_network
 
 app = Flask(__name__)
 output_dir = 'output'
@@ -66,9 +66,24 @@ def upload_file():
 
                 plot_graphics(df, data_column, pdf)
 
+                decomposition(df, data_column, pdf)
+
                 normality_stationarity = analyze_normality_stationarity(df, data_column)
-                ns_text = f"Shapiro-Wilk: {normality_stationarity['shapiro_stat']:.2f}, {normality_stationarity['shapiro_p_value']:.2f}\n"
-                ns_text += f"KPSS: {normality_stationarity['kpss_stat']:.2f}, {normality_stationarity['kpss_p_value']:.2f}"
+                ns_text = f"Shapiro-Wilk: {normality_stationarity['shapiro_stat']:.2f}, {normality_stationarity['shapiro_p_value']:.2f}\n\n"
+                
+                if normality_stationarity['shapiro_p_value'] > 0.05:
+                    ns_text += 'Com 95% de confiança, os dados são similares a \numa distribuição normal, de acordo com o teste Shapiro-Wilk\n\n'
+                else:
+                    ns_text += 'Com 95% de confiança, os dados NÃO são similares a \numa distribuição normal, de acordo com o teste Shapiro-Wilk\n\n'
+
+
+                ns_text += f"KPSS: {normality_stationarity['kpss_stat']:.2f}, {normality_stationarity['kpss_p_value']:.2f}\n\n"
+
+                if normality_stationarity['kpss_p_value'] <0.05 :
+                    ns_text += 'A série não é estacionária'
+                else:
+                    ns_text += 'A série é estacionária'
+
                 plt.gcf().text(0.15, 0.6, ns_text, fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
                 pdf.savefig()
 
@@ -132,4 +147,4 @@ def download_file(filename):
     return send_from_directory(output_dir, filename)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5050, debug=True)

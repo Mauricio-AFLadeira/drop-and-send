@@ -5,6 +5,8 @@ import scipy.stats as stats
 from scipy.stats import norm
 from statsmodels.tsa.stattools import kpss
 from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+from statsmodels.tsa.seasonal import seasonal_decompose
+import statsmodels.api as sm
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 
@@ -36,6 +38,22 @@ def plot_graphics(df, data_column, pdf):
 
     plt.close('all')
 
+def decomposition(df, data_column, pdf):
+    plt.figure()
+    decomposition = sm.tsa.seasonal_decompose(df[data_column], model='additive', period=8)
+    
+    # Plotando os componentes da decomposição
+    fig, axes = plt.subplots(4, 1, figsize=(10, 8))
+
+    decomposition.observed.plot(ax=axes[0], title="Observado")
+    decomposition.trend.plot(ax=axes[1], title="Tendência")
+    decomposition.seasonal.plot(ax=axes[2], title="Sazonalidade")
+    decomposition.resid.plot(ax=axes[3], title="Resíduo")
+
+    plt.tight_layout()
+    pdf.savefig(fig) 
+    plt.close(fig)
+    
 # Função para análise de normalidade e estacionariedade
 def analyze_normality_stationarity(df, data_column):
     sh_stat, sh_p_value = stats.shapiro(df[data_column])
